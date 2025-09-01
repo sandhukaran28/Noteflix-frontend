@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic"; // avoid static prerender issues
 
 import { useState } from "react";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
@@ -8,20 +7,20 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+export default function LoginClient() {
   const { login, ready, token } = useAuth();
   const router = useRouter();
+
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // If already logged in after hydration, bounce to home
-  if (ready && token) {
+  if (!ready) return null; // wait for localStorage hydration
+  if (token) {
     router.replace("/");
     return null;
   }
-  if (!ready) return null; // wait for client hydration to read localStorage
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,17 +1,8 @@
-"use client";
-import Dashboard from "@/features/dashboard/Dashboard";
-import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-export default function HomePage() {
-  const { token, logout } = useAuth();
-  const router = useRouter();
+import HomeClient from './HomeClient';
 
-  useEffect(() => {
-    if (!token) router.replace("/login");
-  }, [token, router]);
-
-  if (!token) return null;
-  return <Dashboard token={token} onLogout={logout} />;
+export default function Page() {
+  return <HomeClient />;
 }
