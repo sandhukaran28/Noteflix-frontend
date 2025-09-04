@@ -77,7 +77,7 @@ export default function AssetsTable({ token }: { token: string }) {
               {rows.map((r: any) => (
                 <tr
                   key={r.id}
-                  className="border-t border-gray-100 dark:border-zinc-800"
+                  className="border-t border-gray-100"
                 >
                   <td className="py-2 pr-4">{r.filename}</td>
                   <td className="py-2 pr-4">{formatBytes(r.size || 0)}</td>

@@ -6,7 +6,7 @@ export const Card = ({
   className = "",
 }: React.PropsWithChildren<{ className?: string }>) => (
   <div
-    className={`rounded-2xl shadow-sm border border-gray-200 bg-white dark:bg-zinc-900 ${className}`}
+    className={`rounded-2xl shadow-sm border border-gray-200  bg-foreground ${className}`}
   >
     {children}
   </div>
@@ -20,7 +20,7 @@ export const CardHeader = ({
   subtitle?: React.ReactNode;
   right?: React.ReactNode;
 }) => (
-  <div className="p-4 border-b border-gray-100 dark:border-zinc-800 flex items-start justify-between gap-4">
+  <div className="p-4 border-b border-gray-100  flex items-start justify-between gap-4">
     <div>
       <h2 className="text-lg font-semibold">{title}</h2>
       {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}

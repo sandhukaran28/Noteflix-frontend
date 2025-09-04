@@ -20,12 +20,12 @@ export function Button({
   const base = "px-3 py-2 rounded-xl text-sm font-medium transition border";
   const styles: Record<string, string> = {
     primary:
-      "bg-black text-white hover:opacity-90 border-black disabled:opacity-50",
+      "bg-[#a28ff3] text-white hover:opacity-90  disabled:opacity-50",
     ghost:
-      "bg-transparent border-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800",
+      "bg-transparent border-gray-200 hover:bg-[#a28ff3] ",
     danger: "bg-red-600 text-white hover:opacity-90 border-red-700",
     outline:
-      "bg-transparent border-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800",
+      "bg-transparent border-gray-300 hover:bg-gray-50",
   };
   return (
     <button
