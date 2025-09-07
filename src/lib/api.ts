@@ -1,27 +1,25 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-
-
-export async function api<T = any>(
-path: string,
-opts: { method?: string; token?: string; body?: any; form?: boolean } = {}
+// src/lib/api.ts
+export async function api<T>(
+  path: string,
+  opts: { method?: string; body?: any; token?: string; form?: boolean } = {}
 ): Promise<T | string> {
-const { method = 'GET', token, body, form } = opts;
-const headers: Record<string, string> = {};
-if (!form) headers['Content-Type'] = 'application/json';
-if (token) headers['Authorization'] = `Bearer ${token}`;
+  const { method = 'GET', body, token, form } = opts;
+  const headers: Record<string, string> = {};
 
+  if (!form) headers['Content-Type'] = 'application/json';
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-const res = await fetch(`${API_URL}${path}`, {
-method,
-headers,
-body: form ? body : body ? JSON.stringify(body) : undefined,
-// Important for Next.js client fetches
-cache: 'no-store',
-});
-if (!res.ok) {
-const text = await res.text();
-throw new Error(`${res.status} ${res.statusText} — ${text}`);
-}
-const ctype = res.headers.get('content-type') || '';
-return ctype.includes('application/json') ? res.json() : res.text();
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${path}`, {
+    method,
+    headers,
+    body: form ? body : body ? JSON.stringify(body) : undefined,
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    return txt || `HTTP ${res.status}`;
+  }
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : res.text();
 }

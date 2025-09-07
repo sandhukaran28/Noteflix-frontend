@@ -1,45 +1,101 @@
+// src/hooks/useAuth.ts
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { cognitoLogin, getCurrentUser, signOut,signUp as poolSignUp, confirmSignUp as poolConfirm, resendConfirmation } from '@/lib/cognito';
+
 
 type User = { username: string } | null;
 
-export function useAuth() {
-  const [token, setToken] = useState<string>('');     // empty until hydrated
-  const [user, setUser] = useState<User>(null);
-  const [ready, setReady] = useState(false);          // hydration flag
+type Stored = {
+  idToken: string;
+  accessToken: string;
+  refreshToken: string;
+  username: string;
+  exp: number; // epoch seconds for id token expiry
+};
 
-  // Read localStorage ONLY on client
+const KEY = 'nf_auth';
+
+function readStored(): Stored | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStored(data: Stored | null) {
+  if (typeof window === 'undefined') return;
+  if (!data) window.localStorage.removeItem(KEY);
+  else window.localStorage.setItem(KEY, JSON.stringify(data));
+}
+
+export function useAuth() {
+  const [token, setToken] = useState<string>(''); // we'll store the ID token here
+  const [user, setUser] = useState<User>(null);
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const t = window.localStorage.getItem('nf_token') || '';
-      const u = JSON.parse(window.localStorage.getItem('nf_user') || 'null');
-      if (t) setToken(t);
-      if (u) setUser(u);
-    } catch {}
+    const s = readStored();
+    if (s && s.idToken) {
+      setToken(s.idToken);
+      setUser({ username: s.username });
+    }
     setReady(true);
   }, []);
 
   const login = async (username: string, password: string) => {
-    const data = await api<{ token: string }>(`/auth/login`, { method: 'POST', body: { username, password } });
-    if (typeof data === 'string') throw new Error(data);
-    setToken(data.token);
+    // Authenticate against Cognito (SRP)
+    const session = await cognitoLogin(username, password);
+
+    const idToken = session.getIdToken().getJwtToken();
+    const accessToken = session.getAccessToken().getJwtToken();
+    const refreshToken = session.getRefreshToken().getToken();
+
+    // Basic decode to get exp (no verification needed on client; backend will verify)
+    const payload = JSON.parse(atob(idToken.split('.')[1]));
+    const exp = payload['exp'] as number;
+
+    setToken(idToken);
     setUser({ username });
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('nf_token', data.token);
-      window.localStorage.setItem('nf_user', JSON.stringify({ username }));
-    }
+
+    writeStored({ idToken, accessToken, refreshToken, username, exp });
   };
 
   const logout = () => {
     setToken('');
     setUser(null);
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('nf_token');
-      window.localStorage.removeItem('nf_user');
+    writeStored(null);
+    signOut();
+  };
+
+   const register = async (username: string, password: string, email?: string) => {
+    await poolSignUp(username, password, email);
+    // user remains unconfirmed until code entered
+  };
+
+  const confirm = async (username: string, code: string) => {
+    await poolConfirm(username, code);
+  };
+
+  const resendCode = async (username: string) => {
+    await resendConfirmation(username);
+  };
+
+
+  // OPTIONAL: token refresh (basic)
+  const maybeRefresh = async () => {
+    const s = readStored();
+    if (!s) return;
+    const now = Math.floor(Date.now() / 1000);
+    if (s.exp - now < 60) {
+      // refresh flow (requires storing CognitoUser and calling refreshSession)
+      // You can add it later; for now rely on re-login if token expires.
     }
   };
 
-  return { token, user, ready, login, logout };
+  return { token, user, ready, login, logout, register, confirm, resendCode, api  };
 }
