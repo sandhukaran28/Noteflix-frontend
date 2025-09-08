@@ -75,7 +75,7 @@ export default function JobsTable({ token }: { token: string }) {
                   </td>
                   <td className="py-2 pr-4">{r.profile}</td>
                   <td className="py-2 pr-4">
-                    {new Date(r.createdAt).toLocaleString()}
+                    {new Date(r.startedAt).toLocaleString()}
                   </td>
                   <td className="py-2 pr-4 text-right">
                     <Button variant="outline" onClick={() => setSelected(r)}>

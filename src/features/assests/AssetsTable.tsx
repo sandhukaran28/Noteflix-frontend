@@ -1,17 +1,31 @@
+"use client";
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 
-function formatBytes(bytes: number) {
-  const units = ["B", "KB", "MB", "GB"];
-  let i = 0;
-  let n = bytes;
-  while (n >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i++;
+function getDisplayName(item: any) {
+  try {
+    if (item?.meta) {
+      const m = JSON.parse(item.meta);
+      if (m?.originalName) return m.originalName;
+    }
+  } catch {}
+  // Fallbacks: filename from path, then id
+  if (item?.path) {
+    const parts = String(item.path).split("/");
+    const last = parts[parts.length - 1] || "";
+    return last || item.id;
   }
-  return `${n.toFixed(1)} ${units[i]}`;
+  return item?.id || "—";
+}
+
+function formatCreatedAt(s?: string) {
+  if (!s) return "—";
+  // API returns "2025-09-08 00:49:35" -> make it ISO-ish
+  const isoish = s.includes("T") ? s : s.replace(" ", "T");
+  const d = new Date(isoish);
+  return isNaN(d.getTime()) ? s : d.toLocaleString();
 }
 
 export default function AssetsTable({ token }: { token: string }) {
@@ -21,9 +35,7 @@ export default function AssetsTable({ token }: { token: string }) {
   const load = async () => {
     setBusy(true);
     try {
-      const res: any = await api(`/assets?limit=100&sort=createdAt:desc`, {
-        token,
-      });
+      const res: any = await api(`/assets?limit=100&sort=createdAt:desc`, { token });
       setRows(res.items || []);
     } catch (e) {
       console.error(e);
@@ -35,6 +47,7 @@ export default function AssetsTable({ token }: { token: string }) {
   useEffect(() => {
     load();
   }, [token]);
+
   useEffect(() => {
     const onRef = () => load();
     window.addEventListener("assets:refresh", onRef);
@@ -47,7 +60,7 @@ export default function AssetsTable({ token }: { token: string }) {
       await api(`/assets/${id}`, { method: "DELETE", token });
       window.dispatchEvent(new CustomEvent("assets:refresh"));
     } catch (e: any) {
-      alert(e.message);
+      alert(e?.message || "Failed to delete asset");
     }
   };
 
@@ -68,22 +81,17 @@ export default function AssetsTable({ token }: { token: string }) {
             <thead className="text-left text-gray-500">
               <tr>
                 <th className="py-2 pr-4">File</th>
-                <th className="py-2 pr-4">Size</th>
+                <th className="py-2 pr-4">Type</th>
                 <th className="py-2 pr-4">Created</th>
                 <th className="py-2 pr-4"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r: any) => (
-                <tr
-                  key={r.id}
-                  className="border-t border-gray-100"
-                >
-                  <td className="py-2 pr-4">{r.filename}</td>
-                  <td className="py-2 pr-4">{formatBytes(r.size || 0)}</td>
-                  <td className="py-2 pr-4">
-                    {new Date(r.createdAt).toLocaleString()}
-                  </td>
+                <tr key={r.id} className="border-t border-gray-100">
+                  <td className="py-2 pr-4">{getDisplayName(r)}</td>
+                  <td className="py-2 pr-4">{r.type || "—"}</td>
+                  <td className="py-2 pr-4">{formatCreatedAt(r.createdAt)}</td>
                   <td className="py-2 pr-4 text-right">
                     <Button variant="danger" onClick={() => delAsset(r.id)}>
                       Delete

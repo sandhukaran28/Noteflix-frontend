@@ -52,6 +52,7 @@ export function useAuth() {
     const session = await cognitoLogin(username, password);
 
     const idToken = session.getIdToken().getJwtToken();
+    await api("/session", { method: "POST", body: { idToken: idToken } });
     const accessToken = session.getAccessToken().getJwtToken();
     const refreshToken = session.getRefreshToken().getToken();
 
