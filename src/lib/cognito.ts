@@ -2,6 +2,7 @@
 import {
   AuthenticationDetails,
   CognitoUser,
+  CognitoUserAttribute,
   CognitoUserPool,
   CognitoUserSession,
 } from 'amazon-cognito-identity-js';
@@ -28,8 +29,13 @@ export function cognitoLogin(username: string, password: string): Promise<Cognit
 
 export function signUp(username: string, password: string, email?: string) {
   return new Promise<{ user: CognitoUser }>((resolve, reject) => {
-    const attrs = email ? [{ Name: 'email', Value: email }] : undefined;
-    pool.signUp(username, password, attrs, [], (err, result) => {
+    // Build proper CognitoUserAttribute[]
+    const attrList: CognitoUserAttribute[] = email
+      ? [new CognitoUserAttribute({ Name: "email", Value: email })]
+      : [];
+
+    // Always pass an array (not undefined)
+    pool.signUp(username, password, attrList, [], (err, result) => {
       if (err || !result) return reject(err);
       resolve({ user: result.user });
     });

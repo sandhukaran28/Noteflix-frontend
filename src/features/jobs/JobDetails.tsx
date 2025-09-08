@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { API_URL, api } from "@/lib/api";
+import {  api } from "@/lib/api";
 
 export default function JobDetails({
   token,
@@ -33,7 +33,7 @@ export default function JobDetails({
     return () => clearInterval(id);
   }, [job.id]);
 
-  const outputUrl = useMemo(() => `${API_URL}/jobs/${job.id}/output`, [job.id]);
+  const outputUrl = useMemo(() => `/jobs/${job.id}/output`, [job.id]);
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm grid place-items-center p-4">
