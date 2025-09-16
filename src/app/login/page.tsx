@@ -12,7 +12,8 @@ import { useRouter } from "next/navigation";
 type Mode = "login" | "register" | "confirm" | "mfa";
 
 export default function AuthPage() {
-  const { login, register, confirm, resendCode, completeMfa, ready, token } = useAuth();
+  const { login, register, confirm, resendCode, completeMfa, ready, token } =
+    useAuth();
   const router = useRouter();
 
   const [mode, setMode] = useState<Mode>("login");
@@ -24,23 +25,33 @@ export default function AuthPage() {
   const [msg, setMsg] = useState("");
 
   // NEW: keep the pending MFA context
-  const [mfaPending, setMfaPending] = useState<import('@/hooks/useAuth').MfaPending | null>(null);
+  const [mfaPending, setMfaPending] = useState<
+    import("@/hooks/useAuth").MfaPending | null
+  >(null);
 
   const title = useMemo(() => {
     switch (mode) {
-      case "register": return "Create account";
-      case "confirm":  return "Confirm your email";
-      case "mfa":      return "Verify it’s you";
-      default:         return "Sign in";
+      case "register":
+        return "Create account";
+      case "confirm":
+        return "Confirm your email";
+      case "mfa":
+        return "Verify it’s you";
+      default:
+        return "Sign in";
     }
   }, [mode]);
 
   const subtitle = useMemo(() => {
     switch (mode) {
-      case "register": return "Sign up with your email & password";
-      case "confirm":  return "Enter the verification code sent to your email";
-      case "mfa":      return "We’ve sent a one-time code to your email";
-      default:         return "Enter your credentials";
+      case "register":
+        return "Sign up with your email & password";
+      case "confirm":
+        return "Enter the verification code sent to your email";
+      case "mfa":
+        return "We’ve sent a one-time code to your email";
+      default:
+        return "Enter your credentials";
     }
   }, [mode]);
 
@@ -50,7 +61,10 @@ export default function AuthPage() {
     }
   }, [ready, token, router]);
 
-  const clearAlerts = () => { setErr(""); setMsg(""); };
+  const clearAlerts = () => {
+    setErr("");
+    setMsg("");
+  };
 
   const handleLogin = async () => {
     clearAlerts();
@@ -155,7 +169,11 @@ export default function AuthPage() {
   };
 
   if (!ready || token) {
-    return <div className="min-h-dvh grid place-items-center p-6 text-sm text-gray-600">Loading…</div>;
+    return (
+      <div className="min-h-dvh grid place-items-center p-6 text-sm text-gray-600">
+        Loading…
+      </div>
+    );
   }
 
   return (
@@ -211,22 +229,32 @@ export default function AuthPage() {
 
             <Button type="submit" disabled={busy}>
               {busy
-                ? (mode === "login"
-                    ? "Signing in…"
-                    : mode === "register"
-                    ? "Creating account…"
-                    : mode === "confirm"
-                    ? "Confirming…"
-                    : "Verifying…")
-                : (mode === "login"
-                    ? "Sign in"
-                    : mode === "register"
-                    ? "Create account"
-                    : mode === "confirm"
-                    ? "Confirm"
-                    : "Verify")}
+                ? mode === "login"
+                  ? "Signing in…"
+                  : mode === "register"
+                  ? "Creating account…"
+                  : mode === "confirm"
+                  ? "Confirming…"
+                  : "Verifying…"
+                : mode === "login"
+                ? "Sign in"
+                : mode === "register"
+                ? "Create account"
+                : mode === "confirm"
+                ? "Confirm"
+                : "Verify"}
             </Button>
           </form>
+          <div className="flex justify-center my-2">
+            {" "}
+            <span className=" text-center text-sm text-gray-500 w-full">
+              or
+            </span>
+          </div>
+
+          <a href="/api/auth/google/start">
+            <Button className="w-full ">Continue with Google</Button>
+          </a>
 
           {/* Footer actions */}
           <div className="mt-4 grid gap-2 text-sm">
@@ -234,7 +262,10 @@ export default function AuthPage() {
               <button
                 type="button"
                 className="text-gray-600 hover:underline text-left"
-                onClick={() => { clearAlerts(); setMode("login"); }}
+                onClick={() => {
+                  clearAlerts();
+                  setMode("login");
+                }}
                 disabled={busy}
               >
                 ← Back to Sign in
@@ -245,7 +276,10 @@ export default function AuthPage() {
               <button
                 type="button"
                 className="text-gray-600 hover:underline text-left"
-                onClick={() => { clearAlerts(); setMode("register"); }}
+                onClick={() => {
+                  clearAlerts();
+                  setMode("register");
+                }}
                 disabled={busy}
               >
                 Don’t have an account? Create one
@@ -256,7 +290,10 @@ export default function AuthPage() {
               <button
                 type="button"
                 className="text-gray-600 hover:underline text-left"
-                onClick={() => { clearAlerts(); setMode("confirm"); }}
+                onClick={() => {
+                  clearAlerts();
+                  setMode("confirm");
+                }}
                 disabled={busy}
               >
                 Already registered? Enter confirmation code
@@ -281,7 +318,11 @@ export default function AuthPage() {
                 className="text-gray-600 hover:underline text-left"
                 onClick={handleResendMfa}
                 disabled={busy || !email || !password}
-                title={!email || !password ? "Enter your email & password above first" : ""}
+                title={
+                  !email || !password
+                    ? "Enter your email & password above first"
+                    : ""
+                }
               >
                 Didn’t get the code? Resend
               </button>

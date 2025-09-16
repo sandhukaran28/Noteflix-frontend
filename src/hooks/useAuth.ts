@@ -24,6 +24,9 @@ type Stored = {
 };
 
 const KEY = 'nf_auth';
+const cognitoDomain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN!; 
+const clientId      = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
+const postLogout    = process.env.NEXT_PUBLIC_LOGOUT_REDIRECT_URI!;
 
 function readStored(): Stored | null {
   if (typeof window === 'undefined') return null;
@@ -127,12 +130,32 @@ export function useAuth() {
     await finishLoginWithSession(username, idToken, accessToken, refreshToken);
   };
 
-  const logout = () => {
-    setToken('');
-    setUser(null);
-    writeStored(null);
-    signOut();
-  };
+
+
+  const logout = async () => {
+  const s = readStored();
+  setToken('');
+  setUser(null);
+  writeStored(null);
+  signOut(); // clears local pool session only
+
+  // (optional) revoke refresh token to invalidate server-side
+  try {
+    if (s?.refreshToken) {
+      await fetch(`${cognitoDomain.replace(/\/$/, '')}/oauth2/revoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ token: s.refreshToken, client_id: clientId })
+      });
+    }
+  } catch { /* ignore */ }
+
+  // end Hosted UI session cookie
+  const url = new URL(`${cognitoDomain.replace(/\/$/, '')}/logout`);
+  url.searchParams.set('client_id', clientId);
+  url.searchParams.set('logout_uri', postLogout);
+  window.location.href = url.toString();
+};
 
   const register = async (username: string, password: string, email?: string) => {
     await poolSignUp(username, password, email);
