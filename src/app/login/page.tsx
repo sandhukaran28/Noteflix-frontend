@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 
-type Mode = "login" | "register" | "confirm";
+// ...imports unchanged...
+type Mode = "login" | "register" | "confirm" | "mfa";
 
 export default function AuthPage() {
-  const { login, register, confirm, resendCode, ready, token } = useAuth();
+  const { login, register, confirm, resendCode, completeMfa, ready, token } = useAuth();
   const router = useRouter();
 
-  // ---- state hooks ----
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,10 +23,14 @@ export default function AuthPage() {
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
+  // NEW: keep the pending MFA context
+  const [mfaPending, setMfaPending] = useState<import('@/hooks/useAuth').MfaPending | null>(null);
+
   const title = useMemo(() => {
     switch (mode) {
       case "register": return "Create account";
       case "confirm":  return "Confirm your email";
+      case "mfa":      return "Verify it’s you";
       default:         return "Sign in";
     }
   }, [mode]);
@@ -35,6 +39,7 @@ export default function AuthPage() {
     switch (mode) {
       case "register": return "Sign up with your email & password";
       case "confirm":  return "Enter the verification code sent to your email";
+      case "mfa":      return "We’ve sent a one-time code to your email";
       default:         return "Enter your credentials";
     }
   }, [mode]);
@@ -45,19 +50,29 @@ export default function AuthPage() {
     }
   }, [ready, token, router]);
 
-  const clearAlerts = () => {
-    setErr("");
-    setMsg("");
-  };
+  const clearAlerts = () => { setErr(""); setMsg(""); };
 
   const handleLogin = async () => {
     clearAlerts();
     setBusy(true);
     try {
-      await login(email, password); // use email as username
+      const res = await login(email, password);
+      // If MFA required, show the MFA step instead of redirecting
+      if (res && (res as any).mfaRequired) {
+        setMfaPending(res as any);
+        setMode("mfa");
+        setMsg("Enter the 6-digit code we emailed you.");
+        return; // stop here; don't redirect yet
+      }
       router.push("/");
     } catch (e: any) {
-      setErr(e?.message ?? "Failed to sign in");
+      // Nice DX: if they never confirmed, jump them to confirm screen
+      if (e?.code === "UserNotConfirmedException") {
+        setMode("confirm");
+        setMsg("Please confirm your email to continue.");
+      } else {
+        setErr(e?.message ?? "Failed to sign in");
+      }
     } finally {
       setBusy(false);
     }
@@ -67,7 +82,7 @@ export default function AuthPage() {
     clearAlerts();
     setBusy(true);
     try {
-      await register(email, password, email); // send email as both username & email attribute
+      await register(email, password, email);
       setMsg("Account created. Check your email for the confirmation code.");
       setMode("confirm");
     } catch (e: any) {
@@ -81,7 +96,7 @@ export default function AuthPage() {
     clearAlerts();
     setBusy(true);
     try {
-      await confirm(email, code); // confirm using email as username
+      await confirm(email, code);
       setMsg("Email confirmed. You can now sign in.");
       setMode("login");
     } catch (e: any) {
@@ -91,14 +106,41 @@ export default function AuthPage() {
     }
   };
 
-  const handleResend = async () => {
+  // ⬇️ NEW: complete the MFA step
+  const handleMfa = async () => {
+    if (!mfaPending) return;
     clearAlerts();
     setBusy(true);
     try {
-      await resendCode(email);
-      setMsg("Verification code resent. Check your email.");
+      await completeMfa(mfaPending, code.trim());
+      router.push("/");
     } catch (e: any) {
-      setErr(e?.message ?? "Failed to resend code");
+      setErr(e?.message ?? "Invalid or expired code");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Optional: if user didn’t get the MFA code, re-trigger step 1 (sign-in),
+  // which makes Cognito send a fresh email OTP.
+  const handleResendMfa = async () => {
+    clearAlerts();
+    if (!email || !password) {
+      setErr("Enter your email and password first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await login(email, password);
+      if (res && (res as any).mfaRequired) {
+        setMfaPending(res as any);
+        setMsg("Code re-sent. Check your inbox.");
+      } else {
+        // Edge: user might have completed MFA on another device; just redirect
+        router.push("/");
+      }
+    } catch (e: any) {
+      setErr(e?.message ?? "Couldn’t resend code");
     } finally {
       setBusy(false);
     }
@@ -109,6 +151,7 @@ export default function AuthPage() {
     if (mode === "login") return handleLogin();
     if (mode === "register") return handleRegister();
     if (mode === "confirm") return handleConfirm();
+    if (mode === "mfa") return handleMfa();
   };
 
   if (!ready || token) {
@@ -121,7 +164,7 @@ export default function AuthPage() {
         <CardHeader title={title} subtitle={subtitle} />
         <CardBody>
           <form onSubmit={onSubmit} className="grid gap-3">
-            {/* Shared: email */}
+            {/* Always show email */}
             <Input
               label="Email"
               type="email"
@@ -130,7 +173,7 @@ export default function AuthPage() {
               required
             />
 
-            {/* Login/Register: password */}
+            {/* Password on login/register (not on MFA or confirm) */}
             {(mode === "login" || mode === "register") && (
               <Input
                 label="Password"
@@ -141,10 +184,22 @@ export default function AuthPage() {
               />
             )}
 
-            {/* Confirm-only: code */}
+            {/* Confirm-email code */}
             {mode === "confirm" && (
               <Input
                 label="Confirmation code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+              />
+            )}
+
+            {/* ⬇️ NEW: MFA code */}
+            {mode === "mfa" && (
+              <Input
+                label="One-time code"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 required
@@ -160,12 +215,16 @@ export default function AuthPage() {
                     ? "Signing in…"
                     : mode === "register"
                     ? "Creating account…"
-                    : "Confirming…")
+                    : mode === "confirm"
+                    ? "Confirming…"
+                    : "Verifying…")
                 : (mode === "login"
                     ? "Sign in"
                     : mode === "register"
                     ? "Create account"
-                    : "Confirm")}
+                    : mode === "confirm"
+                    ? "Confirm"
+                    : "Verify")}
             </Button>
           </form>
 
@@ -208,11 +267,23 @@ export default function AuthPage() {
               <button
                 type="button"
                 className="text-gray-600 hover:underline text-left"
-                onClick={handleResend}
+                onClick={() => resendCode(email)}
                 disabled={busy || !email}
                 title={!email ? "Enter your email above first" : ""}
               >
-                Resend code
+                Resend confirmation code
+              </button>
+            )}
+
+            {mode === "mfa" && (
+              <button
+                type="button"
+                className="text-gray-600 hover:underline text-left"
+                onClick={handleResendMfa}
+                disabled={busy || !email || !password}
+                title={!email || !password ? "Enter your email & password above first" : ""}
+              >
+                Didn’t get the code? Resend
               </button>
             )}
           </div>
